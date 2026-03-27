@@ -10,7 +10,7 @@ Status legend: ✅ Purchased | ⚠️ Purchased but see note | ❌ Still needed
 
 | Qty | Item | Status | Notes |
 |-----|------|--------|-------|
-| 1 | ESP32 dev board | ❌ | Any standard 38-pin ESP32 devkit |
+| 1 | ESP32 dev board | ✅ | Any standard 38-pin ESP32 devkit |
 
 ---
 
@@ -73,10 +73,10 @@ Status legend: ✅ Purchased | ⚠️ Purchased but see note | ❌ Still needed
 | 1 | Fuse holder + 10A blade fuse | ❌ | On 12V rail, upstream of heaters and valves |
 | — | Terminal blocks | ❌ | Power distribution for 12V and 5V rails |
 | — | 18–16 AWG hookup wire (red, black, signal colors) | ❌ | 12V heater/valve runs; signal wiring to relay module and ESP32 |
-| — | Dupont connectors or JST-XH connectors + crimper | ❌ | Sensor wiring to ESP32; relay module signal leads |
-| — | Heat shrink tubing (assorted) | ❌ | Insulation on solder joints and exposed terminals |
+| — | JST-XH connectors + crimper | ✅ | Sensor wiring to ESP32; relay module signal leads |
+| — | Heat shrink tubing (assorted) | ✅ | Insulation on solder joints and exposed terminals |
 | — | M3 standoffs + screws | ❌ | Mounting ESP32 and relay module in enclosure |
-| 1 | Enclosure | ❌ | Houses ESP32, relay module, buck converters; all voltages are low-voltage DC |
+| 1 | Enclosure | ✅ (print) | 3D print in ASA or PETG — do NOT use PLA (softens ~60°C, relay/buck converters run warm). Include ventilation near buck converters. All voltages are low-voltage DC so printed enclosure is safe. |
 
 ---
 
