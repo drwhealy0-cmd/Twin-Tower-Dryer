@@ -60,9 +60,9 @@ Status legend: ✅ Purchased | ⚠️ Purchased but see note | ❌ Still needed
 
 | Qty | Item | Status | Notes |
 |-----|------|--------|-------|
-| 1 | Mean Well LRS-150-24 (24V, 6.5A) | ❌ | Main PSU |
-| 1 | Buck converter 24V→12V, rated 6A+ | ❌ | For heaters (~4.2A) + valves; verify continuous current rating |
-| 1 | Buck converter 24V→5V, rated 3A | ❌ | For ESP32 + relay module + sensors |
+| 1 | Mean Well LRS-150-24 (24V, 6.5A) | ✅ | Main PSU. **Note:** verify AC input selector switch is set to 115V before first power-on. |
+| 1 | TOBSUN EA120-12V buck converter 24V→12V, 10A | ✅ | For heaters (~4.2A) + valves |
+| 1 | DROK buck converter 24V→5V, 5A | ✅ | For ESP32 + relay module + sensors |
 
 ---
 
