@@ -26,9 +26,9 @@ DIY Temperature Swing Adsorption (TSA) filament dryer using two desiccant towers
 
 | Qty | Item | Notes |
 |-----|------|-------|
-| 2 | PTC ceramic heater element — 12V | Rated 200°C; one per tower |
+| 2 | PTCYIDU B-35*21 PTC ceramic heater — 12V DC, 50W max | 200°C self-regulating; one per tower; draws ~4.2A max |
 | 2 | Thermal fuse — 192°C | Safety cutoff in series with each heater |
-| 2 | 25A Solid State Relay (SSR) | Active HIGH control from ESP32 GPIO; switches heater circuit |
+| 2 | Solid State Relay (SSR) — 10A+, 3–32V DC control | Active HIGH from ESP32 GPIO; switches heater 12V circuit; relay module is fully used by valves/fans |
 
 ---
 
@@ -36,9 +36,9 @@ DIY Temperature Swing Adsorption (TSA) filament dryer using two desiccant towers
 
 | Qty | Item | Notes |
 |-----|------|-------|
-| 4 | GDSTIME 3010 30mm DC blower fan — 24V | 2 per tower (1 dry circulation, 1 regen exhaust) |
-| 2 | 3-way solenoid valve — 12V | Supply and return switching between towers |
-| 2 | Exhaust solenoid valve — 12V | One per tower; opens during regeneration |
+| 2 | GDSTIME 3010 30mm DC blower fan — 24V | 1 per tower; runs during both drying and regen |
+| 4 | Beduan 2-way normally-closed solenoid valve — 12V DC, 1/4" NPT | Supply and return path switching; 2 per flow path (one per tower side) |
+| 2 | Beduan 2-way normally-closed solenoid valve — 12V DC, 1/4" NPT | Exhaust; one per tower, opens during regeneration |
 
 ---
 
@@ -54,11 +54,9 @@ DIY Temperature Swing Adsorption (TSA) filament dryer using two desiccant towers
 
 | Qty | Item | Notes |
 |-----|------|-------|
-| 1 | 24V DC PSU | For fans |
-| 1 | Buck converter (24V → 12V) | For heaters and valves (e.g. DROK) |
-| 1 | Buck converter (24V → 5V) | For ESP32 and sensors |
-
-> **Open issue:** Power architecture needs a confirmed multi-rail solution. Voltage mismatch between 24V fans and 12V heaters is unresolved — verify buck converter specs before wiring.
+| 1 | Mean Well LRS-150-24 — 24V, 6.5A PSU | Main supply; powers fans and feeds buck converters |
+| 1 | Buck converter (24V → 12V, 6A+) | Heaters (up to 4.2A) + up to 4 valves; must be rated 6A or higher |
+| 1 | Buck converter (24V → 5V, 3A) | ESP32 + relay module + sensors |
 
 ---
 
@@ -77,10 +75,10 @@ DIY Temperature Swing Adsorption (TSA) filament dryer using two desiccant towers
 
 | Qty | Item | Notes |
 |-----|------|-------|
-| — | 14 AWG wire (black, white) | For 120V AC heater circuits |
-| — | Low-voltage hookup wire (various colors) | For signal, 12V, and 24V runs |
-| — | Wire nuts / ferrules | For mains-side connections |
-| 1 | Grounded metal or fire-rated enclosure | Required for 120V components |
+| — | 18 AWG wire (red/black) | For 12V heater and valve runs (~4–6A max) |
+| — | 22 AWG hookup wire (various colors) | For 24V fan runs, 5V signal, and sensor wiring |
+| — | Ferrules / ring terminals | For secure connections to relay and PSU terminals |
+| 1 | Enclosure (plastic or metal) | Houses PSU, relay module, and ESP32 |
 
 ---
 

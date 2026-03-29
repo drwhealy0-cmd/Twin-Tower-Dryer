@@ -31,18 +31,21 @@
 #define SSR_A         26    // Tower A heater
 #define SSR_B         27    // Tower B heater
 
-// Relay module pins — ACTIVE LOW
-// This means: LOW signal = relay triggers = 12V device turns ON
-// HIGH signal = relay inactive = device OFF
-// This feels backwards at first but it's how most relay modules are wired
-#define RELAY_VALVE_SUPPLY   14   // 3-way valve on the supply (inlet) side
-#define RELAY_VALVE_RETURN   12   // 3-way valve on the return side
-#define RELAY_EXHAUST_A      13   // Exhaust vent valve for Tower A
-#define RELAY_EXHAUST_B      15   // Exhaust vent valve for Tower B
-#define RELAY_FAN_DRY_A      32   // Circulation fan — Tower A drying
-#define RELAY_FAN_REGEN_A    33   // Exhaust fan — Tower A regenerating
-#define RELAY_FAN_DRY_B      25   // Circulation fan — Tower B drying
-#define RELAY_FAN_REGEN_B    23   // Exhaust fan — Tower B regenerating
+// Relay module pins — ACTIVE LOW, 8 channels total
+// LOW signal = relay ON = valve OPEN or fan ON
+// HIGH signal = relay OFF = valve CLOSED or fan OFF
+// Valves are normally-closed (NC): unpowered = closed = safe default
+//
+// Channel layout (relay board left→right):
+//   Ch1  Ch2  Ch3  Ch4  Ch5  Ch6  Ch7  Ch8
+#define RELAY_VALVE_SUPPLY_A  14   // 2-way NC valve: dry box air → Tower A
+#define RELAY_VALVE_SUPPLY_B  12   // 2-way NC valve: dry box air → Tower B
+#define RELAY_VALVE_RETURN_A  13   // 2-way NC valve: Tower A output → dry box
+#define RELAY_VALVE_RETURN_B  15   // 2-way NC valve: Tower B output → dry box
+#define RELAY_EXHAUST_A       32   // 2-way NC valve: Tower A regen exhaust → room
+#define RELAY_EXHAUST_B       33   // 2-way NC valve: Tower B regen exhaust → room
+#define RELAY_FAN_A           25   // Tower A fan — runs during drying AND regen
+#define RELAY_FAN_B           23   // Tower B fan — runs during drying AND regen
 
 // SPI pins for MAX6675 thermocouple modules
 // SCK and MISO are shared between both sensors
@@ -91,6 +94,8 @@ enum SystemState {
 SystemState currentState = TOWER_A_DRYING;   // Start with Tower A
 bool regenComplete_A = false;                 // Has Tower A finished its last regen cycle?
 bool regenComplete_B = false;                 // Has Tower B finished its last regen cycle?
+bool heatingComplete_A = false;               // Has Tower A reached regen target temp (heater locked off)?
+bool heatingComplete_B = false;               // Has Tower B reached regen target temp (heater locked off)?
 unsigned long regenStartTime = 0;             // When did the current regen cycle begin?
 unsigned long lastSensorRead  = 0;            // Tracks the last time we read sensors
 
@@ -129,14 +134,14 @@ void setup() {
   // (sending signals OUT, not reading signals IN)
   pinMode(SSR_A, OUTPUT);
   pinMode(SSR_B, OUTPUT);
-  pinMode(RELAY_VALVE_SUPPLY,  OUTPUT);
-  pinMode(RELAY_VALVE_RETURN,  OUTPUT);
-  pinMode(RELAY_EXHAUST_A,     OUTPUT);
-  pinMode(RELAY_EXHAUST_B,     OUTPUT);
-  pinMode(RELAY_FAN_DRY_A,     OUTPUT);
-  pinMode(RELAY_FAN_REGEN_A,   OUTPUT);
-  pinMode(RELAY_FAN_DRY_B,     OUTPUT);
-  pinMode(RELAY_FAN_REGEN_B,   OUTPUT);
+  pinMode(RELAY_VALVE_SUPPLY_A, OUTPUT);
+  pinMode(RELAY_VALVE_SUPPLY_B, OUTPUT);
+  pinMode(RELAY_VALVE_RETURN_A, OUTPUT);
+  pinMode(RELAY_VALVE_RETURN_B, OUTPUT);
+  pinMode(RELAY_EXHAUST_A,      OUTPUT);
+  pinMode(RELAY_EXHAUST_B,      OUTPUT);
+  pinMode(RELAY_FAN_A,          OUTPUT);
+  pinMode(RELAY_FAN_B,          OUTPUT);
 
   // SAFETY FIRST: Put everything into a known OFF state
   // This prevents random pin states on boot from briefly
@@ -200,7 +205,7 @@ void loop() {
       }
 
       // Meanwhile, manage Tower B's regeneration (if it's currently heating)
-      manageTowerRegen(SSR_B, tempB, regenComplete_B);
+      manageTowerRegen(SSR_B, tempB, regenComplete_B, heatingComplete_B);
 
     } else {  // TOWER_B_DRYING
 
@@ -211,7 +216,7 @@ void loop() {
       }
 
       // Meanwhile, manage Tower A's regeneration
-      manageTowerRegen(SSR_A, tempA, regenComplete_A);
+      manageTowerRegen(SSR_A, tempA, regenComplete_A, heatingComplete_A);
     }
 
     // Safety: Check regen timeout — if a tower has been heating
@@ -235,62 +240,73 @@ void loop() {
 // ================================================================
 
 void activateTowerA_Drying() {
-  // Tower A drying: valves in default position (relays OFF = Tower A path)
-  // Relay module is active LOW so HIGH = relay OFF = default/Tower-A position
-  digitalWrite(RELAY_VALVE_SUPPLY, HIGH);   // Supply valve → Tower A path
-  digitalWrite(RELAY_VALVE_RETURN, HIGH);   // Return valve → Tower A path
-  digitalWrite(RELAY_EXHAUST_A, HIGH);      // Exhaust valve A closed
-  digitalWrite(RELAY_FAN_DRY_A, LOW);       // Tower A dry fan ON
-  digitalWrite(RELAY_FAN_REGEN_A, HIGH);    // Tower A regen fan OFF
+  // Tower A drying: open supply/return path to Tower A, fan A on
+  digitalWrite(RELAY_VALVE_SUPPLY_A, LOW);   // Supply A OPEN — dry box air enters Tower A
+  digitalWrite(RELAY_VALVE_SUPPLY_B, HIGH);  // Supply B CLOSED — Tower B isolated
+  digitalWrite(RELAY_VALVE_RETURN_A, LOW);   // Return A OPEN — dried air exits to dry box
+  digitalWrite(RELAY_VALVE_RETURN_B, HIGH);  // Return B CLOSED
+  digitalWrite(RELAY_EXHAUST_A, HIGH);       // Exhaust A CLOSED — Tower A not exhausting
+  digitalWrite(RELAY_FAN_A, LOW);            // Fan A ON
 
-  // Start regenerating Tower B
-  digitalWrite(RELAY_FAN_DRY_B, HIGH);      // Tower B dry fan OFF
-  digitalWrite(RELAY_EXHAUST_B, LOW);       // Tower B exhaust valve OPEN
-  digitalWrite(RELAY_FAN_REGEN_B, LOW);     // Tower B regen fan ON
+  // Tower B regenerating: exhaust open, fan on, heater managed by manageTowerRegen()
+  digitalWrite(RELAY_EXHAUST_B, LOW);        // Exhaust B OPEN — regen moisture exits to room
+  digitalWrite(RELAY_FAN_B, LOW);            // Fan B ON — pushes air through heater and out exhaust
   regenStartTime = millis();
   regenComplete_B = false;
+  heatingComplete_B = false;
 
   currentState = TOWER_A_DRYING;
 }
 
 void switchToTowerB() {
-  // Step 1: Shut down Tower A dry fan and close airflow
-  digitalWrite(RELAY_FAN_DRY_A, HIGH);
+  // Step 1: Stop Tower A fan briefly to avoid pressure spike during valve transition
+  digitalWrite(RELAY_FAN_A, HIGH);
 
-  // Step 2: Flip valves to Tower B path
-  digitalWrite(RELAY_VALVE_SUPPLY, LOW);    // Relays ON = Tower B path
-  digitalWrite(RELAY_VALVE_RETURN, LOW);
+  // Step 2: Close Tower A supply/return, open Tower B supply/return
+  digitalWrite(RELAY_VALVE_SUPPLY_A, HIGH);  // Supply A CLOSED
+  digitalWrite(RELAY_VALVE_RETURN_A, HIGH);  // Return A CLOSED
+  digitalWrite(RELAY_VALVE_SUPPLY_B, LOW);   // Supply B OPEN — dry box air enters Tower B
+  digitalWrite(RELAY_VALVE_RETURN_B, LOW);   // Return B OPEN — dried air exits to dry box
 
-  // Step 3: Start Tower B dry fan
-  digitalWrite(RELAY_FAN_DRY_B, LOW);
+  // Step 3: Tower B was regenerating — close exhaust and ensure heater is off
+  digitalWrite(RELAY_EXHAUST_B, HIGH);       // Exhaust B CLOSED
+  digitalWrite(SSR_B, LOW);                  // Heater B OFF (manageTowerRegen locks it, but be explicit)
 
-  // Step 4: Close Tower B exhaust (it was regenerating), stop regen fan
-  digitalWrite(RELAY_EXHAUST_B, HIGH);
-  digitalWrite(RELAY_FAN_REGEN_B, HIGH);
-  digitalWrite(SSR_B, LOW);                 // Make sure heater is off
+  // Step 4: Fan B was already running for regen; it continues for drying — no change needed
 
   // Step 5: Start regenerating Tower A
-  digitalWrite(RELAY_EXHAUST_A, LOW);       // Open Tower A exhaust
-  digitalWrite(RELAY_FAN_REGEN_A, LOW);     // Start Tower A regen fan
+  digitalWrite(RELAY_EXHAUST_A, LOW);        // Exhaust A OPEN — regen moisture exits to room
+  digitalWrite(RELAY_FAN_A, LOW);            // Fan A ON — pushes air through heater and out exhaust
   regenStartTime = millis();
   regenComplete_A = false;
+  heatingComplete_A = false;
 
   currentState = TOWER_B_DRYING;
 }
 
 void switchToTowerA() {
   // Mirror of switchToTowerB() — same logic, opposite tower
-  digitalWrite(RELAY_FAN_DRY_B, HIGH);
-  digitalWrite(RELAY_VALVE_SUPPLY, HIGH);
-  digitalWrite(RELAY_VALVE_RETURN, HIGH);
-  digitalWrite(RELAY_FAN_DRY_A, LOW);
-  digitalWrite(RELAY_EXHAUST_A, HIGH);
-  digitalWrite(RELAY_FAN_REGEN_A, HIGH);
-  digitalWrite(SSR_A, LOW);
-  digitalWrite(RELAY_EXHAUST_B, LOW);
-  digitalWrite(RELAY_FAN_REGEN_B, LOW);
+  // Step 1: Stop Tower B fan briefly
+  digitalWrite(RELAY_FAN_B, HIGH);
+
+  // Step 2: Close Tower B supply/return, open Tower A supply/return
+  digitalWrite(RELAY_VALVE_SUPPLY_B, HIGH);  // Supply B CLOSED
+  digitalWrite(RELAY_VALVE_RETURN_B, HIGH);  // Return B CLOSED
+  digitalWrite(RELAY_VALVE_SUPPLY_A, LOW);   // Supply A OPEN
+  digitalWrite(RELAY_VALVE_RETURN_A, LOW);   // Return A OPEN
+
+  // Step 3: Tower A was regenerating — close exhaust and ensure heater is off
+  digitalWrite(RELAY_EXHAUST_A, HIGH);       // Exhaust A CLOSED
+  digitalWrite(SSR_A, LOW);                  // Heater A OFF
+
+  // Step 4: Fan A was already running for regen; it continues for drying — no change needed
+
+  // Step 5: Start regenerating Tower B
+  digitalWrite(RELAY_EXHAUST_B, LOW);        // Exhaust B OPEN
+  digitalWrite(RELAY_FAN_B, LOW);            // Fan B ON — regen
   regenStartTime = millis();
   regenComplete_B = false;
+  heatingComplete_B = false;
   currentState = TOWER_A_DRYING;
 }
 
@@ -305,17 +321,20 @@ void switchToTowerA() {
 //    - Once cool enough: mark regen as complete
 // ================================================================
 
-void manageTowerRegen(int ssrPin, float currentTemp, bool &regenDone) {
+void manageTowerRegen(int ssrPin, float currentTemp, bool &regenDone, bool &heatingDone) {
   if (regenDone) return;   // Nothing to do if this tower already finished
 
-  if (currentTemp < REGEN_TARGET_TEMP) {
-    digitalWrite(ssrPin, HIGH);   // Heater ON — still climbing to target
+  if (!heatingDone) {
+    if (currentTemp < REGEN_TARGET_TEMP) {
+      digitalWrite(ssrPin, HIGH);   // Heater ON — still climbing to target
+    } else {
+      digitalWrite(ssrPin, LOW);    // Hit target temp — heater OFF, lock it out
+      heatingDone = true;
+      Serial.println("Regen target reached, heater off, cooling down...");
+    }
   } else {
-    digitalWrite(ssrPin, LOW);    // Hit target temp — heater OFF
-    Serial.println("Regen target reached, heater off, cooling down...");
-
-    // Tower needs to cool before it can go back online
-    // (Hot alumina re-adsorbs moisture almost immediately)
+    // Heater is locked off — just waiting for the tower to cool
+    // (Hot alumina re-adsorbs moisture almost immediately if switched back in early)
     if (currentTemp < REGEN_COOLDOWN_TEMP) {
       regenDone = true;
       Serial.println("Tower cooled — regen complete, ready to swap back in.");
@@ -334,16 +353,16 @@ void manageTowerRegen(int ssrPin, float currentTemp, bool &regenDone) {
 // ================================================================
 
 void allOff() {
-  digitalWrite(SSR_A, LOW);
+  digitalWrite(SSR_A, LOW);                  // Heaters OFF (active HIGH)
   digitalWrite(SSR_B, LOW);
-  digitalWrite(RELAY_VALVE_SUPPLY,  HIGH);
-  digitalWrite(RELAY_VALVE_RETURN,  HIGH);
-  digitalWrite(RELAY_EXHAUST_A,     HIGH);
-  digitalWrite(RELAY_EXHAUST_B,     HIGH);
-  digitalWrite(RELAY_FAN_DRY_A,     HIGH);
-  digitalWrite(RELAY_FAN_REGEN_A,   HIGH);
-  digitalWrite(RELAY_FAN_DRY_B,     HIGH);
-  digitalWrite(RELAY_FAN_REGEN_B,   HIGH);
+  digitalWrite(RELAY_VALVE_SUPPLY_A, HIGH);  // All valves CLOSED (active LOW, HIGH = off)
+  digitalWrite(RELAY_VALVE_SUPPLY_B, HIGH);
+  digitalWrite(RELAY_VALVE_RETURN_A, HIGH);
+  digitalWrite(RELAY_VALVE_RETURN_B, HIGH);
+  digitalWrite(RELAY_EXHAUST_A,      HIGH);
+  digitalWrite(RELAY_EXHAUST_B,      HIGH);
+  digitalWrite(RELAY_FAN_A,          HIGH);  // Fans OFF
+  digitalWrite(RELAY_FAN_B,          HIGH);
 }
 
 
