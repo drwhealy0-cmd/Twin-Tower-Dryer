@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Twin Tower Dryer — Airflow Diagram</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0a0e1a;
+      color: #c8d8f0;
+      font-family: 'Courier New', 'Lucida Console', monospace;
+      font-size: 12px;
+      min-height: 100vh;
+      padding: 16px;
+    }
+    h1 {
+      text-align: center;
+      font-size: 15px;
+      font-weight: bold;
+      color: #e8f0ff;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .subtitle {
+      text-align: center;
+      color: #6b7fa0;
+      font-size: 11px;
+      margin-bottom: 16px;
+    }
+    .toggle-row {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+    .btn {
+      background: #0f1629;
+      border: 1px solid #1e2d4a;
+      color: #6b7fa0;
+      font-family: inherit;
+      font-size: 12px;
+      padding: 6px 18px;
+      cursor: pointer;
+      border-radius: 3px;
+      transition: all 0.15s;
+    }
+    .btn.active {
+      background: #0f1e3a;
+      border-color: #4da6ff;
+      color: #4da6ff;
+    }
+    .legend {
+      display: flex;
+      justify-content: center;
+      gap: 22px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 11px;
+      color: #6b7fa0;
+    }
+    .legend-line {
+      width: 28px;
+      height: 3px;
+      border-radius: 2px;
+    }
+    svg {
+      display: block;
+      margin: 0 auto;
+      max-width: 100%;
+    }
+    .note {
+      margin: 14px auto 0;
+      max-width: 700px;
+      background: #0a1628;
+      border: 1px solid #1e2d4a;
+      border-left: 3px solid #4da6ff;
+      padding: 10px 14px;
+      font-size: 11px;
+      color: #6b7fa0;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Twin Tower Dryer — Airflow Diagram</h1>
+<p class="subtitle">One tower dries (closed loop) while the other regenerates (open exhaust)</p>
+
+<div class="toggle-row">
+  <button class="btn active" id="btnA" onclick="setMode('A')">Tower A Drying</button>
+  <button class="btn"        id="btnB" onclick="setMode('B')">Tower B Drying</button>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-line" style="background:#3be8a0"></div>Dry air (drying loop)</div>
+  <div class="legend-item"><div class="legend-line" style="background:#f5a623"></div>Hot moist air (regen exhaust)</div>
+  <div class="legend-item"><div class="legend-line" style="background:#3a4d6b;border:1px dashed #3a4d6b"></div>Inactive / closed</div>
+  <div class="legend-item">
+    <!-- mini solenoid symbol -->
+    <svg width="18" height="22" viewBox="-9 -22 18 22" style="overflow:visible">
+      <rect x="-6" y="-22" width="12" height="7" rx="1" fill="#0a0e1a" stroke="#3be8a0" stroke-width="1.3"/>
+      <line x1="-6" y1="-22" x2="6" y2="-15" stroke="#3be8a0" stroke-width="0.9"/>
+      <line x1="0" y1="-15" x2="0" y2="-10" stroke="#3be8a0" stroke-width="1.3"/>
+      <rect x="-8" y="-10" width="16" height="16" rx="1" fill="#0a0e1a" stroke="#3be8a0" stroke-width="1.3"/>
+      <line x1="-8" y1="-10" x2="8"  y2="6"  stroke="#3be8a0" stroke-width="1"/>
+      <line x1="8"  y1="-10" x2="-8" y2="6"  stroke="#3be8a0" stroke-width="1"/>
+    </svg>
+    Solenoid valve (open)
+  </div>
+  <div class="legend-item">
+    <svg width="18" height="22" viewBox="-9 -22 18 22" style="overflow:visible">
+      <rect x="-6" y="-22" width="12" height="7" rx="1" fill="#0a0e1a" stroke="#1e2d4a" stroke-width="1.3"/>
+      <line x1="-6" y1="-22" x2="6" y2="-15" stroke="#1e2d4a" stroke-width="0.9"/>
+      <line x1="0" y1="-15" x2="0" y2="-10" stroke="#1e2d4a" stroke-width="1.3"/>
+      <rect x="-8" y="-10" width="16" height="16" rx="1" fill="#0a0e1a" stroke="#1e2d4a" stroke-width="1.3"/>
+      <line x1="-8" y1="-10" x2="8"  y2="6"  stroke="#1e2d4a" stroke-width="1"/>
+      <line x1="8"  y1="-10" x2="-8" y2="6"  stroke="#1e2d4a" stroke-width="1"/>
+    </svg>
+    Solenoid valve (closed / NC)
+  </div>
+</div>
+
+<!-- SVG dimensions: 700 x 480 -->
+<svg id="diagram" width="700" height="480" viewBox="0 0 700 480">
+
+  <defs>
+    <marker id="arrowGreen"  markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#3be8a0"/>
+    </marker>
+    <marker id="arrowOrange" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#f5a623"/>
+    </marker>
+  </defs>
+
+  <!-- ═══════════════════════════════════════════
+       STATIC BOXES
+  ════════════════════════════════════════════ -->
+
+  <!-- DRY BOXES (top center) -->
+  <rect x="250" y="20" width="200" height="50" rx="4"
+        fill="#0f1629" stroke="#1e2d4a" stroke-width="1.5"/>
+  <text x="350" y="40"  text-anchor="middle" fill="#c8d8f0" font-family="Courier New, monospace" font-size="12" font-weight="bold">DRY BOXES</text>
+  <text x="350" y="56"  text-anchor="middle" fill="#6b7fa0" font-family="Courier New, monospace" font-size="10">(filament storage)</text>
+
+  <!-- TOWER A (left) -->
+  <rect x="60" y="160" width="140" height="160" rx="4"
+        fill="#0f1629" stroke="#1e2d4a" stroke-width="1.5"/>
+  <text x="130" y="183" text-anchor="middle" fill="#c8d8f0" font-family="Courier New, monospace" font-size="12" font-weight="bold">TOWER A</text>
+  <text x="130" y="198" text-anchor="middle" fill="#6b7fa0" font-family="Courier New, monospace" font-size="10">activated alumina</text>
+  <!-- Heater A badge -->
+  <rect id="heaterA_box" x="84" y="259" width="92" height="22" rx="3"
+        fill="#1a0a00" stroke="#3a4d6b" stroke-width="1" stroke-dasharray="3,2"/>
+  <text id="heaterA" x="130" y="274" text-anchor="middle" fill="#3a4d6b"
+        font-family="Courier New, monospace" font-size="10">HEATER A</text>
+
+  <!-- TOWER B (right) -->
+  <rect x="500" y="160" width="140" height="160" rx="4"
+        fill="#0f1629" stroke="#1e2d4a" stroke-width="1.5"/>
+  <text x="570" y="183" text-anchor="middle" fill="#c8d8f0" font-family="Courier New, monospace" font-size="12" font-weight="bold">TOWER B</text>
+  <text x="570" y="198" text-anchor="middle" fill="#6b7fa0" font-family="Courier New, monospace" font-size="10">activated alumina</text>
+  <!-- Heater B badge -->
+  <rect id="heaterB_box" x="524" y="259" width="92" height="22" rx="3"
+        fill="#1a0a00" stroke="#3a4d6b" stroke-width="1" stroke-dasharray="3,2"/>
+  <text id="heaterB" x="570" y="274" text-anchor="middle" fill="#3a4d6b"
+        font-family="Courier New, monospace" font-size="10">HEATER B</text>
+
+  <!-- FAN A -->
+  <rect x="80" y="390" width="100" height="36" rx="4"
+        fill="#0f1629" stroke="#1e2d4a" stroke-width="1.5"/>
+  <text x="130" y="408" text-anchor="middle" fill="#c8d8f0" font-family="Courier New, monospace" font-size="11" font-weight="bold">FAN A</text>
+  <text x="130" y="420" text-anchor="middle" fill="#6b7fa0" font-family="Courier New, monospace" font-size="9">3010 blower 24V</text>
+
+  <!-- FAN B -->
+  <rect x="520" y="390" width="100" height="36" rx="4"
+        fill="#0f1629" stroke="#1e2d4a" stroke-width="1.5"/>
+  <text x="570" y="408" text-anchor="middle" fill="#c8d8f0" font-family="Courier New, monospace" font-size="11" font-weight="bold">FAN B</text>
+  <text x="570" y="420" text-anchor="middle" fill="#6b7fa0" font-family="Courier New, monospace" font-size="9">3010 blower 24V</text>
+
+  <!-- ROOM (exhaust destinations) -->
+  <rect x="14" y="280" width="72" height="28" rx="3"
+        fill="#0f1629" stroke="#1e2d4a" stroke-width="1"/>
+  <text x="50" y="298"  text-anchor="middle" fill="#6b7fa0" font-family="Courier New, monospace" font-size="10">ROOM</text>
+
+  <rect x="614" y="280" width="72" height="28" rx="3"
+        fill="#0f1629" stroke="#1e2d4a" stroke-width="1"/>
+  <text x="650" y="298" text-anchor="middle" fill="#6b7fa0" font-family="Courier New, monospace" font-size="10">ROOM</text>
+
+  <!-- ═══════════════════════════════════════════
+       FLOW PATHS (drawn before valves so valves render on top)
+  ════════════════════════════════════════════ -->
+
+  <!-- Tower A DRYING loop (green when active) -->
+  <polyline id="pathA_fanToSupply"    points="130,390  130,128"           fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline id="pathA_supplyToTower"  points="130,110  130,160"           fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline id="pathA_towerToReturn"  points="200,170  226,170  226,67"   fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline id="pathA_returnToDryBox" points="226,31   226,20  250,20  250,20" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline id="pathA_dryBoxToFan"    points="250,70   250,360  130,360  130,390" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Tower A REGEN exhaust (orange when active) -->
+  <polyline id="pathA_regen_fanToTower"    points="130,390  130,320"     fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline id="pathA_regen_towerToExhaust" points="60,220  41,220"      fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline id="pathA_regen_exhaustToRoom"  points="50,229  50,280"      fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Tower B DRYING loop (green when active) -->
+  <polyline id="pathB_fanToSupply"    points="570,390  570,128"           fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline id="pathB_supplyToTower"  points="570,110  570,160"           fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline id="pathB_towerToReturn"  points="500,170  474,170  474,67"   fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline id="pathB_returnToDryBox" points="474,31   474,20  450,20  450,20" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline id="pathB_dryBoxToFan"    points="450,70   450,360  570,360  570,390" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Tower B REGEN exhaust (orange when active) -->
+  <polyline id="pathB_regen_fanToTower"     points="570,390  570,320"    fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline id="pathB_regen_towerToExhaust" points="640,220  659,220"    fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline id="pathB_regen_exhaustToRoom"  points="650,229  650,280"    fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Exhaust horizontal from tower to valve (Tower A left side, Tower B right side) -->
+  <polyline id="pathA_towerToExhValve" points="60,220  59,220"   fill="none" stroke-width="2.5" stroke-linecap="round"/>
+  <polyline id="pathB_towerToExhValve" points="640,220  641,220" fill="none" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- ═══════════════════════════════════════════
+       SOLENOID VALVE SYMBOLS
+       Each group centered at the valve's position on the path.
+       Symbol (centered at origin, then translated):
+         Coil: rect(-6,-22) 12×7  + diagonal hatch
+         Stem: line(0,-15)→(0,-10)
+         Body: rect(-8,-10) 16×16 + X diagonals
+         Label: text offset to side or below
+  ════════════════════════════════════════════ -->
+
+  <!-- VALVE_SUPPLY_A — vertical path, x=130, between fan and tower top -->
+  <!-- Center: (130, 119) -->
+  <g id="vsA" transform="translate(130,119)">
+    <rect x="-6" y="-31" width="12" height="7"  rx="1" fill="#0a0e1a" stroke-width="1.4"/>
+    <line x1="-6" y1="-31" x2="6" y2="-24"                            stroke-width="0.9"/>
+    <line x1="0"  y1="-24" x2="0" y2="-18"                            stroke-width="1.4"/>
+    <rect x="-8" y="-18"  width="16" height="16" rx="1" fill="#0a0e1a" stroke-width="1.4"/>
+    <line x1="-8" y1="-18" x2="8"  y2="-2"                            stroke-width="1.1"/>
+    <line x1="8"  y1="-18" x2="-8" y2="-2"                            stroke-width="1.1"/>
+    <text x="11" y="-8" text-anchor="start" font-family="Courier New, monospace" font-size="8" font-weight="bold">SUPPLY A</text>
+  </g>
+
+  <!-- VALVE_RETURN_A — vertical path at x=226, between tower right and dry box left port -->
+  <!-- Center: (226, 49) -->
+  <g id="vrA" transform="translate(226,49)">
+    <rect x="-6" y="-31" width="12" height="7"  rx="1" fill="#0a0e1a" stroke-width="1.4"/>
+    <line x1="-6" y1="-31" x2="6" y2="-24"                            stroke-width="0.9"/>
+    <line x1="0"  y1="-24" x2="0" y2="-18"                            stroke-width="1.4"/>
+    <rect x="-8" y="-18"  width="16" height="16" rx="1" fill="#0a0e1a" stroke-width="1.4"/>
+    <line x1="-8" y1="-18" x2="8"  y2="-2"                            stroke-width="1.1"/>
+    <line x1="8"  y1="-18" x2="-8" y2="-2"                            stroke-width="1.1"/>
+    <text x="11" y="-8" text-anchor="start" font-family="Courier New, monospace" font-size="8" font-weight="bold">RETURN A</text>
+  </g>
+
+  <!-- VALVE_SUPPLY_B — vertical path, x=570, between fan B and tower B top -->
+  <!-- Center: (570, 119) -->
+  <g id="vsB" transform="translate(570,119)">
+    <rect x="-6" y="-31" width="12" height="7"  rx="1" fill="#0a0e1a" stroke-width="1.4"/>
+    <line x1="-6" y1="-31" x2="6" y2="-24"                            stroke-width="0.9"/>
+    <line x1="0"  y1="-24" x2="0" y2="-18"                            stroke-width="1.4"/>
+    <rect x="-8" y="-18"  width="16" height="16" rx="1" fill="#0a0e1a" stroke-width="1.4"/>
+    <line x1="-8" y1="-18" x2="8"  y2="-2"                            stroke-width="1.1"/>
+    <line x1="8"  y1="-18" x2="-8" y2="-2"                            stroke-width="1.1"/>
+    <text x="-11" y="-8" text-anchor="end" font-family="Courier New, monospace" font-size="8" font-weight="bold">SUPPLY B</text>
+  </g>
+
+  <!-- VALVE_RETURN_B — vertical path at x=474, between tower B right and dry box right port -->
+  <!-- Center: (474, 49) -->
+  <g id="vrB" transform="translate(474,49)">
+    <rect x="-6" y="-31" width="12" height="7"  rx="1" fill="#0a0e1a" stroke-width="1.4"/>
+    <line x1="-6" y1="-31" x2="6" y2="-24"                            stroke-width="0.9"/>
+    <line x1="0"  y1="-24" x2="0" y2="-18"                            stroke-width="1.4"/>
+    <rect x="-8" y="-18"  width="16" height="16" rx="1" fill="#0a0e1a" stroke-width="1.4"/>
+    <line x1="-8" y1="-18" x2="8"  y2="-2"                            stroke-width="1.1"/>
+    <line x1="8"  y1="-18" x2="-8" y2="-2"                            stroke-width="1.1"/>
+    <text x="-11" y="-8" text-anchor="end" font-family="Courier New, monospace" font-size="8" font-weight="bold">RETURN B</text>
+  </g>
+
+  <!-- EXHAUST_A — horizontal path at y=220, left side of tower A -->
+  <!-- Center: (50, 220). Coil rotated to left side (valve rotated -90°) -->
+  <g id="exA" transform="translate(50,220) rotate(-90)">
+    <rect x="-6" y="-31" width="12" height="7"  rx="1" fill="#0a0e1a" stroke-width="1.4"/>
+    <line x1="-6" y1="-31" x2="6" y2="-24"                            stroke-width="0.9"/>
+    <line x1="0"  y1="-24" x2="0" y2="-18"                            stroke-width="1.4"/>
+    <rect x="-8" y="-18"  width="16" height="16" rx="1" fill="#0a0e1a" stroke-width="1.4"/>
+    <line x1="-8" y1="-18" x2="8"  y2="-2"                            stroke-width="1.1"/>
+    <line x1="8"  y1="-18" x2="-8" y2="-2"                            stroke-width="1.1"/>
+    <!-- Label unrotated (counter-rotate the text) -->
+    <text transform="rotate(90)" x="11" y="-8" text-anchor="start"
+          font-family="Courier New, monospace" font-size="8" font-weight="bold">EXHAUST A</text>
+  </g>
+
+  <!-- EXHAUST_B — horizontal path at y=220, right side of tower B -->
+  <!-- Center: (650, 220). Coil rotated to right side (valve rotated 90°) -->
+  <g id="exB" transform="translate(650,220) rotate(90)">
+    <rect x="-6" y="-31" width="12" height="7"  rx="1" fill="#0a0e1a" stroke-width="1.4"/>
+    <line x1="-6" y1="-31" x2="6" y2="-24"                            stroke-width="0.9"/>
+    <line x1="0"  y1="-24" x2="0" y2="-18"                            stroke-width="1.4"/>
+    <rect x="-8" y="-18"  width="16" height="16" rx="1" fill="#0a0e1a" stroke-width="1.4"/>
+    <line x1="-8" y1="-18" x2="8"  y2="-2"                            stroke-width="1.1"/>
+    <line x1="8"  y1="-18" x2="-8" y2="-2"                            stroke-width="1.1"/>
+    <!-- Label unrotated -->
+    <text transform="rotate(-90)" x="-11" y="-8" text-anchor="end"
+          font-family="Courier New, monospace" font-size="8" font-weight="bold">EXHAUST B</text>
+  </g>
+
+  <!-- Mode label -->
+  <text id="modeLabel" x="350" y="462" text-anchor="middle"
+        font-family="Courier New, monospace" font-size="11" fill="#6b7fa0"></text>
+
+</svg>
+
+<div class="note">
+  <strong style="color:#4da6ff">Valve states:</strong> All valves are 2-way normally-closed (NC) — open only when energized by the relay module.<br>
+  <strong>Drying tower:</strong> SUPPLY + RETURN valves open → air circulates: fan → tower → dry boxes → fan (closed loop).<br>
+  <strong>Regen tower:</strong> SUPPLY + RETURN valves closed, EXHAUST valve open → fan pushes air through heated desiccant bed → room (open loop).<br>
+  Towers switch roles every ~6–8 hours (configurable). Only one heater runs at a time.
+</div>
+
+<script>
+  const GREEN  = "#3be8a0";
+  const ORANGE = "#f5a623";
+  const DIM    = "#1e2d4a";
+
+  function el(id) { return document.getElementById(id); }
+
+  // Color every stroke element (rect, line) and fill every text in the valve group.
+  function setValve(groupId, color) {
+    const g = el(groupId);
+    if (!g) return;
+    g.querySelectorAll("rect, line").forEach(e => e.setAttribute("stroke", color));
+    g.querySelectorAll("text").forEach(e => e.setAttribute("fill", color));
+  }
+
+  const modeA = {
+    label: "Tower A: DRYING (closed loop)   |   Tower B: REGENERATING (exhausting to room)",
+    activePaths: [
+      { id: "pathA_fanToSupply",           color: GREEN  },
+      { id: "pathA_supplyToTower",         color: GREEN  },
+      { id: "pathA_towerToReturn",         color: GREEN  },
+      { id: "pathA_returnToDryBox",        color: GREEN  },
+      { id: "pathA_dryBoxToFan",           color: GREEN  },
+      { id: "pathB_regen_fanToTower",      color: ORANGE },
+      { id: "pathB_regen_towerToExhaust",  color: ORANGE },
+      { id: "pathB_regen_exhaustToRoom",   color: ORANGE },
+      { id: "pathB_towerToExhValve",       color: ORANGE },
+    ],
+    inactivePaths: [
+      "pathB_fanToSupply","pathB_supplyToTower","pathB_towerToReturn",
+      "pathB_returnToDryBox","pathB_dryBoxToFan",
+      "pathA_regen_fanToTower","pathA_regen_towerToExhaust","pathA_regen_exhaustToRoom",
+      "pathA_towerToExhValve",
+    ],
+    valves:  { vsA: GREEN, vrA: GREEN, vsB: DIM, vrB: DIM, exA: DIM, exB: ORANGE },
+    heaterA: false,
+    heaterB: true,
+  };
+
+  const modeB = {
+    label: "Tower B: DRYING (closed loop)   |   Tower A: REGENERATING (exhausting to room)",
+    activePaths: [
+      { id: "pathB_fanToSupply",           color: GREEN  },
+      { id: "pathB_supplyToTower",         color: GREEN  },
+      { id: "pathB_towerToReturn",         color: GREEN  },
+      { id: "pathB_returnToDryBox",        color: GREEN  },
+      { id: "pathB_dryBoxToFan",           color: GREEN  },
+      { id: "pathA_regen_fanToTower",      color: ORANGE },
+      { id: "pathA_regen_towerToExhaust",  color: ORANGE },
+      { id: "pathA_regen_exhaustToRoom",   color: ORANGE },
+      { id: "pathA_towerToExhValve",       color: ORANGE },
+    ],
+    inactivePaths: [
+      "pathA_fanToSupply","pathA_supplyToTower","pathA_towerToReturn",
+      "pathA_returnToDryBox","pathA_dryBoxToFan",
+      "pathB_regen_fanToTower","pathB_regen_towerToExhaust","pathB_regen_exhaustToRoom",
+      "pathB_towerToExhValve",
+    ],
+    valves:  { vsA: DIM, vrA: DIM, vsB: GREEN, vrB: GREEN, exA: ORANGE, exB: DIM },
+    heaterA: true,
+    heaterB: false,
+  };
+
+  function setMode(mode) {
+    const cfg = mode === 'A' ? modeA : modeB;
+
+    el("btnA").classList.toggle("active", mode === 'A');
+    el("btnB").classList.toggle("active", mode === 'B');
+
+    cfg.activePaths.forEach(({ id, color }) => {
+      const p = el(id);
+      if (!p) return;
+      p.setAttribute("stroke", color);
+      p.setAttribute("stroke-dasharray", "none");
+      p.setAttribute("stroke-opacity", "1");
+      p.setAttribute("marker-end", color === GREEN ? "url(#arrowGreen)" : "url(#arrowOrange)");
+    });
+
+    cfg.inactivePaths.forEach(id => {
+      const p = el(id);
+      if (!p) return;
+      p.setAttribute("stroke", DIM);
+      p.setAttribute("stroke-dasharray", "4,4");
+      p.setAttribute("stroke-opacity", "0.35");
+      p.removeAttribute("marker-end");
+    });
+
+    Object.entries(cfg.valves).forEach(([id, color]) => setValve(id, color));
+
+    // Heaters
+    [["heaterA", cfg.heaterA], ["heaterB", cfg.heaterB]].forEach(([id, on]) => {
+      const t = el(id);
+      const b = el(id + "_box");
+      const c = on ? ORANGE : "#3a4d6b";
+      if (t) t.setAttribute("fill", c);
+      if (b) b.setAttribute("stroke", c);
+    });
+
+    el("modeLabel").textContent = cfg.label;
+  }
+
+  setMode('A');
+</script>
+</body>
+</html>

@@ -60,25 +60,43 @@ DIY Temperature Swing Adsorption (TSA) filament dryer using two desiccant towers
 
 ---
 
-## Enclosure & Desiccant
+## Tower Construction
+
+Two desiccant towers built from 2" Schedule 40 black iron pipe. Air enters one end cap and exits the other; heater is buried in the desiccant bed; mesh screens retain the alumina granules.
 
 | Qty | Item | Notes |
 |-----|------|-------|
-| 2 | Repurposed Litholyme medical container | Used as desiccant towers |
-| — | Activated alumina desiccant | Fill both towers; regenerates at ~150–200°C |
+| 2 | 2" Schedule 40 black iron pipe nipple — 6" long | One per tower; 6" gives ~0.32L desiccant volume; go longer for more capacity |
+| 4 | 2" black iron pipe end cap | Two per tower (top + bottom); drill and tap to 1/4" NPT for air connections |
+| 1 | 1/4" NPT pipe tap + 27/64" drill bit | For tapping air ports into end caps; one port per cap |
+| 4 | 1/4" NPT close nipple (steel) | Threaded into tapped end caps; connects to solenoid valve tubing |
+| — | PTFE thread seal tape | For all NPT connections |
+| 2 | PG7 cable gland (or rubber grommet, ~6mm) | Heater wire pass-through on one end cap per tower |
+| — | High-temp RTV silicone — 260°C+ rated | Seal cable gland holes; Permatex Ultra Copper or equivalent |
+| — | Steel mesh screen — small piece | Cut two circles per tower to retain alumina inside end caps |
+| — | Activated alumina desiccant | Fill both towers; regenerates at ~150–200°C; ~300g per tower at 6" pipe length |
 
-> **Open issue:** Container plastic type is unidentified. Regen temps (~180°C) may exceed HDPE/PP limits — verify material before running a full regen cycle.
+> **Heater mounting:** No bracket needed — bury the PTC heater in the alumina bed. The packed granules hold it in place. Ensure heater body does not contact the pipe wall (alumina insulates it naturally).
 
 ---
 
-## Wiring & Hardware
+## Plumbing / Tubing
 
 | Qty | Item | Notes |
 |-----|------|-------|
+| 15 ft | Silicone tubing — 1/4" ID × 1/2" OD | All air path connections; silicone required — regen path sees ~180°C |
+| 12 | 1/4" NPT male to 1/4" barbed fitting | 2 per solenoid valve × 6 valves; connects valves to silicone tubing |
+
+---
+
+## Enclosure & Hardware
+
+| Qty | Item | Notes |
+|-----|------|-------|
+| 1 | Enclosure (plastic or metal) | Houses PSU, relay module, and ESP32 |
 | — | 18 AWG wire (red/black) | For 12V heater and valve runs (~4–6A max) |
 | — | 22 AWG hookup wire (various colors) | For 24V fan runs, 5V signal, and sensor wiring |
 | — | Ferrules / ring terminals | For secure connections to relay and PSU terminals |
-| 1 | Enclosure (plastic or metal) | Houses PSU, relay module, and ESP32 |
 
 ---
 
